@@ -481,6 +481,7 @@
 	      endcase
 	end
 
+
 	// Output register or memory read data
 	always @( posedge S_AXI_ACLK )
 	begin
@@ -501,14 +502,13 @@
 	end    
 
 	// Add user logic here
-	wire reset, start, load_in, use_prev_cv;
-	assign reset = slv_reg0[0];
-	assign start = slv_reg0[1];
-	assign liad_in = slv_reg0[2];
+	wire start, load_in, use_prev_cv;
+	//assign start = slv_reg0[1];
+	//assign load_in = slv_reg0[2];
 	assign use_prev_cv = slv_reg0[3];
 	
 	wire [31:0] data_in;
-	assign data_in = slv_reg1;
+	//assign data_in = slv_reg1;
 	
 	wire [159:0] cv;
 	assign cv[31:0]  = slv_reg2;
@@ -516,6 +516,24 @@
 	assign cv[95:64] = slv_reg4;
 	assign cv[127:96] = slv_reg5;
 	assign cv[159:128] = slv_reg6;
+
+	wire [31:0] data_i [15:0];
+	assign data_i[0]  = slv_reg2;
+	assign data_i[1] = slv_reg3;
+	assign data_i[95:64] = slv_reg4;
+	assign data_i[127:96] = slv_reg5;
+	assign data_i[159:128] = slv_reg6;
+	assign data_i[31:0]  = slv_reg2;
+	assign data_i[63:32] = slv_reg3;
+	assign data_i[95:64] = slv_reg4;
+	assign data_i[127:96] = slv_reg5;
+	assign data_i[159:128] = slv_reg6;
+	assign data_i[31:0]  = slv_reg2;
+	assign data_i[63:32] = slv_reg3;
+	assign data_i[95:64] = slv_reg4;
+	assign data_i[127:96] = slv_reg5;
+	assign data_i[159:128] = slv_reg6;
+	assign data_i[159:128] = slv_reg6;
 	
 	//wire busy, out_valid;
 	//assign busy = slv_reg7[0];
@@ -527,11 +545,31 @@
 	//assign cv_next[95:64] = slv_reg10;
 	//assign cv_next[127:96] = slv_reg11;
 	//assign cv_next[159:128] = slv_reg12;
+
+	wire start_int;
+	reg out_valid_int;
 	
-	sha1_exec sha1_exec (.clk(clk), .reset(reset), .start(start),
+	sha1_exec sha1_exec (.clk(clk), .reset(~S_AXI_ARESETN), .start(start_int),
                         .data_in(data_in), .load_in(load_in),
                         .cv(cv), .use_prev_cv(use_prev_cv), .busy(busy), 
-                        .out_valid(out_valid), .cv_next(cv_next));
+                        .out_valid(out_valid_int), .cv_next(cv_next));
+
+	sequencer sequencer (.clk_i(clk), .rst_i(S_AXI_ARESETN), .data_i(data_i), .start_i(start),
+						.out_valid_i(out_valid_int), .start_o(start_int), .load_o(load_in), .data_o(data_in));
+
+	always @(posedge clk, negedge S_AXI_ARESETN, posedge start_int) begin
+		if (S_AXI_ARESETN == 1'b0 || start == 1'b1) begin
+
+			out_valid = 1'b0;
+
+		end else begin
+
+			if (out_valid_int == 1'b1) begin
+				out_valid = 1'b1;
+			end
+
+		end
+	end
 
 	// User logic ends
 
