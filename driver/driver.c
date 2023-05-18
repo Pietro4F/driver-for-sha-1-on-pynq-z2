@@ -1,4 +1,4 @@
-#include address.h
+#include "address.h"
 
 
 #include <linux/init.h>           // Macros used to mark up functions e.g. __init __exit
@@ -55,39 +55,37 @@ static struct file_operations fops =
 
 static long int Sha1_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 	
-    switch(cmd)
+    switch(cmd) {
         case DIN:
-            selected_register = SHA1_BASEADDR + SHA1_1 ;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_1);
             break;
         case CV:
-            selected_register = SHA1_BASEADDR + SHA1_17 ;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_17);
             break;
         case PREV_CV:
-            selected_register = SHA1_BASEADDR + SHA1_0 ;
-            bit_mask = 1;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_0);
             break;
         case START:
-            selected_register = SHA1_BASEADDR + SHA1_0 ;
-            bit_mask = 0;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_0);
             break;
         case BUSY:
-            selected_register = SHA1_BASEADDR + SHA1_22 ;
-            bit_mask = 1;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_22);
             break;
         case VALID:
-            selected_register = SHA1_BASEADDR + SHA1_22 ;
-            bit_mask = 0;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_22);
             break;
         case DOUT:
-            selected_register = SHA1_BASEADDR + SHA1_23 ;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_23);
             break;
         case RESET:
-            selected_register = SHA1_BASEADDR + SHA1_0 ;
-            bit_mask = 2;
+            selected_register = (int *)(SHA1_BASEADDR + SHA1_0);
             break;
 
-        // fare default
-	
+        default :
+            //printk(KERN_INFO "Error\n");
+            break;
+	    
+	}
    	//printk(KERN_INFO "Sha1: Executing IOCTL\n");
 	
 	return -1;
@@ -102,18 +100,24 @@ static long int Sha1_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 
 static int  Sha1_open_close(struct inode* inodep, struct file * filep) {
 	
-    //selected_register = SHA1_BASEADDR + SHA1_0;
-    *(SHA1_BASEADDR + SHA1_0) = 0x4;
+    selected_register = (int *)(SHA1_BASEADDR + SHA1_0);
+    *selected_register = 0x4;
+    *selected_register = 0x0;
 
-    *(SHA1_BASEADDR + SHA1_0) = 0x0;
-
-    //selected_register = SHA1_BASEADDR + SHA1_17;
-
-    *(SHA1_BASEADDR + SHA1_17) = 0x67452301;
-    *(SHA1_BASEADDR + SHA1_18) = 0xEFCDAB89;
-    *(SHA1_BASEADDR + SHA1_19) = 0x98BADCFE;
-    *(SHA1_BASEADDR + SHA1_20) = 0x10325476;
-    *(SHA1_BASEADDR + SHA1_21) = 0xC3D2E1F0;
+    selected_register = (int *)(SHA1_BASEADDR + SHA1_17);
+    *selected_register = 0x67452301;
+    
+    selected_register = (int *)(SHA1_BASEADDR + SHA1_18);
+    *selected_register = 0xEFCDAB89;
+    
+    selected_register = (int *)(SHA1_BASEADDR + SHA1_19);
+    *selected_register = 0x98BADCFE;
+    
+    selected_register = (int *)(SHA1_BASEADDR + SHA1_20);
+    *selected_register = 0x10325476;
+    
+    selected_register = (int *)(SHA1_BASEADDR + SHA1_21);
+    *selected_register = 0xC3D2E1F0;
 	
    	//printk(KERN_INFO "Sha1: Executing OPENRELEASE\n");
 	return 0;
@@ -132,7 +136,7 @@ static int  Sha1_open_close(struct inode* inodep, struct file * filep) {
 static ssize_t Sha1_read(struct file * filep, char * buffer, size_t len, loff_t * offset) {
 	
 
-    copy_to_user(buffer, selected_register, 4);
+    return copy_to_user(buffer, selected_register, 4);
     
     
     /*int data;
@@ -140,7 +144,7 @@ static ssize_t Sha1_read(struct file * filep, char * buffer, size_t len, loff_t 
 	copy_to_user(buffer, &data, 4);*/
 
    	//printk(KERN_INFO "Sha1: Executing READ\n");
-	return 4;
+	//return 4;
 }
 
 
@@ -153,6 +157,7 @@ static ssize_t Sha1_read(struct file * filep, char * buffer, size_t len, loff_t 
  */
 static ssize_t Sha1_write(struct file * filep, const char * buffer, size_t len, loff_t * offset) {
 
+    int i;
     for (i=0; i< (len%4); i++){
         *(selected_register + (i*4))= buffer[i];
     }
@@ -227,3 +232,120 @@ static void __exit Sha1_module_exit(void){
  */
 module_init(Sha1_module_init);
 module_exit(Sha1_module_exit);
+
+
+
+struct blink_local {
+	int irq;
+	unsigned long mem_start;
+	unsigned long mem_end;
+	void __iomem *base_addr;
+};
+
+
+static struct platform_driver blink_driver = {
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table	= blink_of_match,
+	},
+	.probe		= blink_probe,
+	.remove		= blink_remove,
+};
+
+
+static int blink_probe(struct platform_device *pdev)
+{
+        int rc = 0;
+	struct resource *r_irq; /* Interrupt resources */
+	struct resource *r_mem; /* IO mem resources */
+	struct device *dev = &pdev->dev;
+	struct blink_local *lp = NULL;
+     
+
+	dev_info(dev, "Device Tree Probing\n");
+
+	/* Get iospace for the device */
+	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r_mem) {
+		dev_err(dev, "invalid address\n");
+		return -ENODEV;
+	}
+	
+	lp = (struct blink_local *) kmalloc(sizeof(struct blink_local), GFP_KERNEL);
+	if (!lp) {
+		dev_err(dev, "Cound not allocate blink device\n");
+		return -ENOMEM;
+	}
+	
+	dev_set_drvdata(dev, lp);
+	
+	lp->mem_start = r_mem->start;
+	lp->mem_end = r_mem->end;
+
+	if (!request_mem_region(lp->mem_start,
+				lp->mem_end - lp->mem_start + 1,
+				DRIVER_NAME)) {
+		dev_err(dev, "Couldn't lock memory region at %p\n",
+			(void *)lp->mem_start);
+		rc = -EBUSY;
+		goto error1;
+	}
+
+	lp->base_addr = ioremap(lp->mem_start, lp->mem_end - lp->mem_start + 1);
+	if (!lp->base_addr) {
+		dev_err(dev, "blink: Could not allocate iomem\n");
+		rc = -EIO;
+		goto error2;
+	}
+
+	/* Get IRQ for the device */
+	r_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!r_irq) {
+		dev_info(dev, "no IRQ found\n");
+		dev_info(dev, "blink at 0x%08x mapped to 0x%08x\n",
+			(unsigned int __force)lp->mem_start,
+			(unsigned int __force)lp->base_addr);
+		return 0;
+	}
+	lp->irq = r_irq->start;
+	
+	rc = request_irq(lp->irq, &blink_irq, 0, DRIVER_NAME, lp);
+	if (rc) {
+		dev_err(dev, "testmodule: Could not allocate interrupt %d.\n",
+			lp->irq);
+		goto error3;
+	}
+
+	dev_info(dev,"blink at 0x%08x mapped to 0x%08x, irq=%d\n",
+		(unsigned int __force)lp->mem_start,
+		(unsigned int __force)lp->base_addr,
+		lp->irq);
+	return 0;
+error3:
+	free_irq(lp->irq, lp);
+error2:
+	release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
+error1:
+	kfree(lp);
+	dev_set_drvdata(dev, NULL);
+
+
+	return rc;
+}
+
+static int blink_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct blink_local *lp = dev_get_drvdata(dev);
+	free_irq(lp->irq, lp);
+	release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
+	kfree(lp);
+	dev_set_drvdata(dev, NULL);
+	return 0;
+}
+
+
+
+
+

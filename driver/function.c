@@ -1,4 +1,4 @@
-#include address.h
+#include "address.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -6,19 +6,27 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <stdio.h>
 
+int main()
+{
 
-inn main() {
-    int fd = open ("/dev/Sha1_module",O_RDWR	);
-	if (fd < 0) {
-		perror ("Unable to open device");
-	}
+    printf("Opening file\n");
 
-    long r =  ioctl(fd, DIN, NULL);
+    int fd = open("/dev/Sha1_module", O_RDWR);
 
-    if (r < 0) {
-		perror ("Unable to open device");
-	}
+    if (fd < 0)
+    {
+        perror("Unable to open device");
+    }
+
+    printf("First ioctl\n");
+    long r = ioctl(fd, DIN, NULL);
+
+    if (r < 0)
+    {
+        perror("Unable to open device");
+    }
 
     int base[17];
 
@@ -39,28 +47,42 @@ inn main() {
     base[2] = 0x00000000;
     base[1] = 0x00000018;
 
-    write (fd, &base[1], sizeof(int) * 16);	
+    printf("Writing input data\n");
+    write(fd, &base[1], sizeof(int) * 16);
 
     int buf;
     buf = 1;
 
-    long r =  ioctl(fd, START, NULL);
-	write (fd, &buf, sizeof(int));	
+    printf("Writing start\n");
+    r = ioctl(fd, START, NULL);
+    write(fd, &buf, sizeof(int));
     buf = 0;
-    write (fd, &buf, sizeof(int));	
+    printf("Resetting start\n");
+    write(fd, &buf, sizeof(int));
 
-    long r =  ioctl(fd, VALID, NULL);
+    r = ioctl(fd, VALID, NULL);
 
-    r = read (fd, &buf, sizeof(int));
+    printf("Reading done\n");
+    r = read(fd, &buf, sizeof(int));
 
-    while( (*buf & 0x1) == 0){
-        r = read (fd, &buf, sizeof(int));
+    printf("Waiting done\n");
+    while ((buf & 0x1) == 0)
+    {
+        r = read(fd, &buf, sizeof(int));
     };
 
-    long r =  ioctl(fd, DOUT, NULL);
+    printf("Done asserted\n");
+    r = ioctl(fd, DOUT, NULL);
 
-    r = read (fd, &base[1], sizeof(int)*5);
+    printf("Reading output\n");
+    r = read(fd, &base[1], sizeof(int) * 5);
 
+    printf("Output value: ");
+    printf("%08x ", base[5]);
+    printf("%08x ", base[4]);
+    printf("%08x ", base[3]);
+    printf("%08x ", base[2]);
+    printf("%08x ", base[1]);
     close(fd);
 
     return 0;
@@ -84,7 +106,7 @@ int main() {
 	int buf;
 	r = read (fd, &buf, sizeof(int));
 
-	write (fd, &buf, sizeof(int));	
+	write (fd, &buf, sizeof(int));
 
 	close(fd);
 
