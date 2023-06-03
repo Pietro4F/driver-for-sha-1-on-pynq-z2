@@ -152,7 +152,7 @@ static ssize_t device_read(struct file *file,	/* see include/linux/fs.h */
         // NOTE: Post increment unary operator must be used, copy_to_user returns 0 if OK
         if(copy_to_user(buffer, func_register, 4) == 0){
             // Decresce the lenght and increment the bytes counter
-			buffer = buffer + 1;
+			buffer = buffer + 4;
 			func_register = func_register + 1;
             length = length - 4;
             bytes = bytes + 4;
@@ -187,7 +187,7 @@ static ssize_t device_write(struct file *file,
         if(copy_from_user(func_register, buffer, 4) == 0){
             // Decresce the lenght and increment the bytes counter
 			func_register = func_register + 1;
-			buffer = buffer + 1;
+			buffer = buffer + 4;
             length = length - 4;
             bytes = bytes + 4;
         } else{
