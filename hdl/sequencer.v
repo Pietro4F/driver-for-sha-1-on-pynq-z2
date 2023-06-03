@@ -1,3 +1,4 @@
+
 module sequencer (
 	input clk_i,
 	input rst_i,
@@ -6,16 +7,19 @@ module sequencer (
 	input out_valid_i,
 	output reg start_o,
 	output reg load_o,
+    output reg out_valid_o,
 	output [31:0] data_o
 );
 
 
-	parameter      IDLE = 2'b00;
-	parameter      TX = 2'b01;
-	parameter      START = 2'b10;
-	parameter      WAIT = 2'b11;
-	reg [1:0]     state; 
-	reg [1:0]      next_state;
+	parameter      IDLE = 3'b000;
+	parameter      TX = 3'b001;
+	parameter      START = 3'b010;
+	parameter      WAIT = 3'b011;
+    parameter      DONE = 3'b100;
+
+	reg [2:0]     state; 
+	reg [2:0]      next_state;
 
 
 	reg cnt_ce;
@@ -57,11 +61,20 @@ module sequencer (
 
 				WAIT : begin
 					if (out_valid_i == 1'b1) begin
-						next_state = IDLE;
+						next_state = DONE;
 					end else begin
 						next_state = WAIT;
 					end
 				end // case: WAIT
+
+                
+				DONE : begin
+					if (start_i == 1'b0) begin
+						next_state = IDLE;
+					end else begin
+						next_state = DONE;
+					end
+				end // case: DONE
 				
 				default : begin
 					next_state = IDLE;
@@ -76,6 +89,7 @@ module sequencer (
 		start_o = 1'b0;       
 		load_o = 1'b0;
 		cnt_ce = 1'b0;
+        out_valid_o = 1'b0;
 
 		case (state)
 				IDLE : begin
@@ -98,6 +112,10 @@ module sequencer (
 				WAIT : begin
 					start_o = 1'b0;  
 				end // case: WAIT
+
+                DONE : begin
+                    out_valid_o = 1'b1;  
+				end // case: DONE
 				
 				default : begin
 					start_o = 1'b0;       

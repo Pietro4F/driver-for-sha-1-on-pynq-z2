@@ -42,7 +42,6 @@ module tb_top ();
 		@(negedge clk);
 		@(posedge clk);
 
-		start = 0;
 		while (busy == 1'd1)
 		begin
 			@(posedge clk);
@@ -66,26 +65,33 @@ module tb_top ();
 		expected_result = 160'h84983e441c3bd26ebaae4aa1f95129e5e54670f1;
 		cv = 160'h67452301EFCDAB8998BADCFE10325476C3D2E1F0;
 		use_prev_cv = 0;
+
+		@(posedge clk);
 		start = 1;
 		@(posedge clk);
+		start = 1;
+
+		@(posedge clk);
 		start = 0;
+
+		@(posedge clk);
+		start = 1;
 		
 		while (busy == 1'd1)
 			begin
 			@(posedge clk);
 			end
 		@(posedge clk);
-		/*
-		$display("  intermediate result is %8h %8h %8h %8h %8h", cv_next[159:128], 
-					cv_next[127:96], cv_next[95:64], cv_next[63:32], 
-					cv_next[31:0]);
-		*/
+		
 		data_i = {448'd0, 61'd56, 3'd0};
 		use_prev_cv = 1;
-		start = 1;
+
 		//use_prev_cv = 1;
 		@(posedge clk);
 		start = 0;
+
+		@(posedge clk);
+		start = 1;
 		//use_prev_cv = 0;
 		while (busy == 1'd1)
 			begin
