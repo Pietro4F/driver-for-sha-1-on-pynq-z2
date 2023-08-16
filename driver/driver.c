@@ -1,463 +1,319 @@
-/*  blink.c - The simplest kernel module.
- */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
+#include "driver.h"
 
-#include <linux/fs.h>
 
-#include <linux/slab.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
+//Module information
+MODULE_LICENSE("CC-BY-NC-4.0");
+MODULE_AUTHOR("OS_2023_TEAM_4");
+MODULE_DESCRIPTION("SHA1 - driver to control sha1 hardware module");
 
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 
-#include <asm/uaccess.h> /* for get_user and put_user */
-#include <asm/io.h>
-// #include "blink.h"
-#include "address.h"
-#define SUCCESS 0
-#define DEVICE_NAME "/dev/Sha1_module"
-
-#define SHA1_BASEADDR 0x43C00000
-#define SHA1_0 0
-#define SHA1_1 1
-#define SHA1_2 2
-#define SHA1_3 3
-#define SHA1_4 4
-#define SHA1_5 5
-#define SHA1_6 6
-#define SHA1_7 7
-#define SHA1_8 8
-#define SHA1_9 9
-#define SHA1_10 10
-#define SHA1_11 11
-#define SHA1_12 12
-#define SHA1_13 13
-#define SHA1_14 14
-#define SHA1_15 16
-#define SHA1_16 16
-#define SHA1_17 17
-#define SHA1_18 18
-#define SHA1_19 19
-#define SHA1_20 20
-#define SHA1_21 21
-#define SHA1_22 22
-#define SHA1_23 23
-#define SHA1_24 24
-#define SHA1_25 25
-#define SHA1_26 26
-#define SHA1_27 27
-
-// #define BLINK_CTRL_REG 0x43C00000
+// Address of the first register of the device
 static unsigned long *mmio;
+
+// Address of the register selected using ioctl for read/write operations
 static unsigned long *selected_register;
+
+// Major number of the device
 static int major_num;
 
-/*
- * Is the device open right now? Used to prevent
- * concurent access into the same device
- */
+// Flag to signal if device is already open. Used to prevent concurent access into the same device
 static int Device_Open = 0;
 
-/*
-static void set_blink_ctrl(void)
-{
-	printk("KERNEL PRINT : set_blink_ctrl \n\r");
-	*(unsigned int *)mmio = 0x1;
-}
 
-static void reset_blink_ctrl(void)
-{
-
-	printk("KERNEL PRINT : reset_blink_ctrl \n\r");
-	*(unsigned int *)mmio = 0x0;
-}
-*/
-/*
- * This is called whenever a process attempts to open the device file
+/** @brief This is called whenever a process attempts to open the device file. 
+ *  The hardware is initialized
+ *  @param inode A pointer to an inode object (defined in linux/fs.h)
+ *  @param filep A pointer to a file object (defined in linux/fs.h)
  */
-static int device_open(struct inode *inode, struct file *file)
-{
-#ifdef DEBUG
-	printk(KERN_INFO "device_open(%p)\n", file);
-#endif
-	/*
-	 * We don't want to talk to two processes at the same time
-	 */
-	if (Device_Open)
-		return -EBUSY;
-	Device_Open++;
+static int sha1_open(struct inode *inode, struct file *file) {
+	
+	#ifdef DEBUG
+		printk(KERN_INFO "Sha1: Executing OPEN\n");
+	#endif
 
+	// Check if one other process is already accessing the device
+	if (Device_Open == 1) {
+
+		// If device accessed by other process an error code is returned
+		return -DEVICE_BUSY;
+	} else {
+
+		// If no other process is using the device the flag is set
+		Device_Open = 1;
+	}
+
+	// Sending a reset signal pulse to the machine
 	selected_register = (unsigned long *)(mmio + SHA1_0);
 	*selected_register = 0x4;
 	*selected_register = 0x0;
 
+	// Setting the initial hash value
 	selected_register = (unsigned long *)(mmio + SHA1_21);
 	*selected_register = 0x67452301;
-
 	selected_register = (unsigned long *)(mmio + SHA1_20);
 	*selected_register = 0xEFCDAB89;
-
 	selected_register = (unsigned long *)(mmio + SHA1_19);
 	*selected_register = 0x98BADCFE;
-
 	selected_register = (unsigned long *)(mmio + SHA1_18);
 	*selected_register = 0x10325476;
-
 	selected_register = (unsigned long *)(mmio + SHA1_17);
 	*selected_register = 0xC3D2E1F0;
-	/*
-	 * Initialize the message
-	 */
-	//	Message_Ptr = Message;
-	try_module_get(THIS_MODULE);
+
 	return SUCCESS;
 }
-static int device_release(struct inode *inode, struct file *file)
-{
-#ifdef DEBUG
-	printk(KERN_INFO "device_release(%p,%p)\n", inode, file);
-#endif
-	/*
-	 * We're now ready for our next caller
-	 */
-	Device_Open--;
+
+
+/** @brief This function is called whenever a process which has already opened the
+ *  device file attempts to read from it.
+ *  Starting from the address selected using the ioctl the device registers are readed for the length
+ *  of the buffer specified as function argument.
+ *  @param file A pointer to a file object (defined in linux/fs.h)
+ *  @param buffer The pointer to the buffer to which this function writes the data
+ *  @param length The length of the buffer
+ *  @param offset The offset if required
+ */
+static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, loff_t *offset) {
 	
+	// Bytes of data readed from the device
+	ssize_t bytes_readed = 0;
+
+	// Address from where data will be readed
+	static unsigned long *func_register;
+	
+	// Setting initial address to the value selected by ioctl 
+	func_register = selected_register;
+	
+	// Reading until the input buffer is full
+    while(length != 0) {
+		
+		#ifdef DEBUG
+			printk(KERN_INFO "Sha1: Executing READ: selected register %lu, value %x\n", func_register, *func_register);
+		#endif
+        
+		// Reading one word from the device
+        if(copy_to_user(buffer, func_register, 4) == 0){
+
+			// If successfully copied the word to user space
+            
+			// Updating the pointer of the input buffer
+			buffer = buffer + 4;
+
+			// Updating the word of memory to read next
+			func_register = func_register + 1;
+
+			// Updating the number of byter that have to be readed
+            length = length - 4;
+
+			// Updating the number of bytes that have been correctly readed
+            bytes_readed = bytes_readed + 4;
+
+        } else{
+
+			// If an error occurred the reading is stopped
+            break;
+        }
+    }
+
+	// Returning the number of byter that have been correctly readed
+    return bytes_readed;
+}
+
+
+/** @brief This function is called when somebody tries to
+ *  write into our device file.
+ *  Starting from the address selected using the ioctl the device registers are writen for the length
+ *  of the buffer specified as function argument.
+ *  @param file A pointer to a file object
+ *  @param buffer The buffer to that contains the string to write to the device
+ *  @param length The length of the array of data that is being passed in the const char buffer
+ *  @param offset The offset if required
+ */
+static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset) {
+	
+	// Bytes of data written from the device
+	ssize_t bytes_written = 0;
+
+	// Address from where data will be readed
+	static unsigned long *func_register;
+	
+	// Setting initial address to the value selected by ioctl 
+	func_register = selected_register;
+	
+    while(length != 0) {
+	
+		// Writing one word to the device
+        if(copy_from_user(func_register, buffer, 4) == 0){
+
+			#ifdef DEBUG
+				printk(KERN_INFO "Sha1: Executing WRITE: selected register %lu, value %x\n", func_register, *func_register);
+        	#endif
+
+            // If successfully copied the word to the device
+
+			// Updating the pointer of the input buffer
+			buffer = buffer + 4;
+
+			// Updating the word of memory to write next
+			func_register = func_register + 1;
+
+			// Updating the number of byter that have to be writed
+            length = length - 4;
+
+			// Updating the number of bytes that have been correctly written
+            bytes_written = bytes_written + 4;
+        } else{
+
+			// If an error occurred the writing is stopped
+            break;
+        }
+    }
+
+	// Returning the number of byter that have been correctly written
+	return bytes_written;
+}
+
+
+/** @brief Function to provide commands to the device 
+ *  Using this function it is possible to select a register to target for the red/write operations
+ *  @param file A pointer to a file object (defined in linux/fs.h)
+ *  @param ioctl_num A command
+ *  @param ioctl_param The arguments for the command 
+ */
+long sha1_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
+
+	#ifdef DEBUG
+		printk(KERN_INFO "Sha1: Executing IOCTL: command %x\n", ioctl_num);
+    #endif
+
+	// Switch according to the ioctl command
+	switch (ioctl_num) {
+		 
+		case DIN:
+		// First register for the input data
+		selected_register = (unsigned long *)(mmio + SHA1_1);
+		break;
+
+		case CV:
+		// Fistr register for the initial hash
+		selected_register = (unsigned long *)(mmio + SHA1_17);
+		break;
+
+		case PREV_CV:
+		// Controll register
+		selected_register = (unsigned long *)(mmio + SHA1_0);
+		break;
+
+		case START:
+		// Controll register
+		selected_register = (unsigned long *)(mmio + SHA1_0);
+		break;
+
+		case BUSY:
+		// Status register
+		selected_register = (unsigned long *)(mmio + SHA1_22);
+		break;
+
+		case VALID:
+		// Status register
+		selected_register = (unsigned long *)(mmio + SHA1_22);
+		break;
+
+		case DOUT:
+		// First register for the output data
+		selected_register = (unsigned long *)(mmio + SHA1_23);
+		break;
+
+		case RESET:
+		// Controll register
+		selected_register = (unsigned long *)(mmio + SHA1_0);
+		break;
+
+		default:
+		// Invalid command
+		return -IOCTL_FAIL;
+		break;
+	}
+
+	return SUCCESS;
+}
+
+
+/** @brief This is called whenever a process attempts to close the device file.
+ *  The hardware is resetted
+ *  @param inode A pointer to an inode object (defined in linux/fs.h)
+ *  @param filep A pointer to a file object (defined in linux/fs.h)
+ */
+static int sha1_release(struct inode *inode, struct file *file) {
+
+	#ifdef DEBUG
+		printk(KERN_INFO "Sha1: Executing RELEASE\n");
+	#endif
+
+	// Resetting the flag
+	Device_Open = 0;
+	
+	// Sending a reset signal pulse to the machine
 	selected_register = (unsigned long *)(mmio + SHA1_0);
 	*selected_register = 0x4;
 	*selected_register = 0x0;
-	
-	module_put(THIS_MODULE);
+
 	return SUCCESS;
 }
-/*
- * This function is called whenever a process which has already opened the
- * device file attempts to read from it.
- */
-static ssize_t device_read(struct file *file,	/* see include/linux/fs.h */
-						   char __user *buffer, /* buffer to be filled with data */
-						   size_t length,		/* length of the buffer */
-						   loff_t *offset)
-{
-	ssize_t bytes = 0;
-	static unsigned long *func_register;
-	
-	func_register = selected_register;
-	
-    while(length != 0) {
-		printk(KERN_INFO "Sha1: Executing READ: selected register %lu, value %x\n", func_register, *func_register);
-        // NOTE: Post increment unary operator must be used, copy_to_user returns 0 if OK
-        if(copy_to_user(buffer, func_register, 4) == 0){
-            // Decresce the lenght and increment the bytes counter
-			buffer = buffer + 4;
-			func_register = func_register + 1;
-            length = length - 4;
-            bytes = bytes + 4;
-        } else{
-            break;
-        }
-    }
 
-    //printk(KERN_INFO "Sha1: Executing READ\n");
 
-    return bytes;
-}
 /*
- * This function is called when somebody tries to
- * write into our device file.
- */
-static ssize_t device_write(struct file *file,
-							const char __user *buffer,
-							size_t length,
-							loff_t *offset)
-{
-	ssize_t bytes = 0;
-	int tmp;
-	static unsigned long *func_register;
-	
-	func_register = selected_register;
-	
-    while(length != 0) {
-		copy_from_user(&tmp, buffer, 4);
-		printk(KERN_INFO "Sha1: Executing WRITE: selected register %lu, value %x\n", func_register, tmp);
-        // NOTE: Post increment unary operator must be used, copy_to_user returns 0 if OK
-        if(copy_from_user(func_register, buffer, 4) == 0){
-            // Decresce the lenght and increment the bytes counter
-			func_register = func_register + 1;
-			buffer = buffer + 4;
-            length = length - 4;
-            bytes = bytes + 4;
-        } else{
-            break;
-        }
-    }
-    
-   	//printk(KERN_INFO "Sha1: Executing WRITE\n");
-
-	return bytes;
-}
-/*
- * This function is called whenever a process tries to do an ioctl on our
- * device file. We get two extra parameters (additional to the inode and file
- * structures, which all device functions get): the number of the ioctl called
- * and the parameter given to the ioctl function.
- *
- * If the ioctl is write or read/write (meaning output is returned to the
- * calling process), the ioctl call returns the output of this function.
- *
- */
-long device_ioctl(struct file *file,	  /* ditto */
-				  unsigned int ioctl_num, /* number and param for ioctl */
-				  unsigned long ioctl_param)
-{
-	//	int i;
-	char *temp;
-	//	char ch;
-	/*
-	 * Switch according to the ioctl called
-	 */
-	switch (ioctl_num)
-	{
-	case DIN:
-		selected_register = (unsigned long *)(mmio + SHA1_1);
-		break;
-	case CV:
-		selected_register = (unsigned long *)(mmio + SHA1_17);
-		break;
-	case PREV_CV:
-		selected_register = (unsigned long *)(mmio + SHA1_0);
-		break;
-	case START:
-		selected_register = (unsigned long *)(mmio + SHA1_0);
-		break;
-	case BUSY:
-		selected_register = (unsigned long *)(mmio + SHA1_22);
-		break;
-	case VALID:
-		selected_register = (unsigned long *)(mmio + SHA1_22);
-		break;
-	case DOUT:
-		selected_register = (unsigned long *)(mmio + SHA1_23);
-		break;
-	case RESET:
-		selected_register = (unsigned long *)(mmio + SHA1_0);
-		break;
-
-	default:
-		// printk(KERN_INFO "Error\n");
-		break;
-	}
-	return SUCCESS;
-}
-/* Module Declarations */
-/*
- * This structure will hold the functions to be called
- * when a process does something to the device we
- * created. Since a pointer to this structure is kept in
- * the devices table, it can't be local to
- * init_module. NULL is for unimplemented functions.
+ * Structure that holds the functions to be called
+ * when a process interacts with the device.
  */
 struct file_operations Fops = {
 	.owner = THIS_MODULE,
-	.read = device_read,
-	.write = device_write,
-	.unlocked_ioctl = device_ioctl,
-	.open = device_open,
-	.release = device_release, /*close */
+	.open = sha1_open,
+	.read = sha1_read,
+	.write = sha1_write,
+	.unlocked_ioctl = sha1_ioctl,
+	.release = sha1_release
 };
 
-/* Standard module information, edit as appropriate */
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Xilinx Inc.");
-MODULE_DESCRIPTION("blink - loadable module template generated by petalinux-create -t modules");
 
-#define DRIVER_NAME "Sha1_module"
+static int __init sha1_init(void) {
 
-/* Simple example of how to receive command line parameters to your module.
-   Delete if you don't need them */
-/*
-unsigned myint = 0xdeadbeef;
-char *mystr = "default";
+	#ifdef DEBUG
+		printk(KERN_INFO "Sha1: Executing INIT\n");
+	#endif
 
-module_param(myint, int, S_IRUGO);
-module_param(mystr, charp, S_IRUGO);
-*/
-
-struct blink_local
-{
-	int irq;
-	unsigned long mem_start;
-	unsigned long mem_end;
-	void __iomem *base_addr;
-};
-
-static irqreturn_t blink_irq(int irq, void *lp)
-{
-	printk("blink interrupt\n");
-	return IRQ_HANDLED;
-}
-
-static int blink_probe(struct platform_device *pdev)
-{
-	int rc = 0;
-	struct resource *r_irq; /* Interrupt resources */
-	struct resource *r_mem; /* IO mem resources */
-	struct device *dev = &pdev->dev;
-	struct blink_local *lp = NULL;
-
-	dev_info(dev, "Device Tree Probing\n");
-
-	/* Get iospace for the device */
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r_mem)
-	{
-		dev_err(dev, "invalid address\n");
-		return -ENODEV;
-	}
-
-	lp = (struct blink_local *)kmalloc(sizeof(struct blink_local), GFP_KERNEL);
-	if (!lp)
-	{
-		dev_err(dev, "Cound not allocate blink device\n");
-		return -ENOMEM;
-	}
-
-	dev_set_drvdata(dev, lp);
-
-	lp->mem_start = r_mem->start;
-	lp->mem_end = r_mem->end;
-
-	if (!request_mem_region(lp->mem_start,
-							lp->mem_end - lp->mem_start + 1,
-							DRIVER_NAME))
-	{
-		dev_err(dev, "Couldn't lock memory region at %p\n",
-				(void *)lp->mem_start);
-		rc = -EBUSY;
-		goto error1;
-	}
-
-	lp->base_addr = ioremap(lp->mem_start, lp->mem_end - lp->mem_start + 1);
-	if (!lp->base_addr)
-	{
-		dev_err(dev, "blink: Could not allocate iomem\n");
-		rc = -EIO;
-		goto error2;
-	}
-
-	/* Get IRQ for the device */
-	r_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!r_irq)
-	{
-		dev_info(dev, "no IRQ found\n");
-		dev_info(dev, "blink at 0x%08x mapped to 0x%08x\n",
-				 (unsigned int __force)lp->mem_start,
-				 (unsigned int __force)lp->base_addr);
-		return 0;
-	}
-	lp->irq = r_irq->start;
-
-	rc = request_irq(lp->irq, &blink_irq, 0, DRIVER_NAME, lp);
-	if (rc)
-	{
-		dev_err(dev, "testmodule: Could not allocate interrupt %d.\n",
-				lp->irq);
-		goto error3;
-	}
-
-	dev_info(dev, "blink at 0x%08x mapped to 0x%08x, irq=%d\n",
-			 (unsigned int __force)lp->mem_start,
-			 (unsigned int __force)lp->base_addr,
-			 lp->irq);
-	return 0;
-error3:
-	free_irq(lp->irq, lp);
-error2:
-	release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
-error1:
-	kfree(lp);
-	dev_set_drvdata(dev, NULL);
-
-	return rc;
-}
-
-static int blink_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct blink_local *lp = dev_get_drvdata(dev);
-	free_irq(lp->irq, lp);
-	release_mem_region(lp->mem_start, lp->mem_end - lp->mem_start + 1);
-	kfree(lp);
-	dev_set_drvdata(dev, NULL);
-	return 0;
-}
-
-#ifdef CONFIG_OF
-static struct of_device_id blink_of_match[] = {
-	{
-		.compatible = "vendor,blink",
-	},
-	{/* end of list */},
-};
-MODULE_DEVICE_TABLE(of, blink_of_match);
-#else
-#define blink_of_match
-#endif
-
-static struct platform_driver blink_driver = {
-	.driver = {
-		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
-		.of_match_table = blink_of_match,
-	},
-	.probe = blink_probe,
-	.remove = blink_remove,
-};
-
-static int __init blink_init(void)
-{
-	int rc = 0;
-	printk("<1>Hello module world.\n");
-	//printk("<1>Module parameters were (0x%08x) and \"%s\"\n", myint, mystr);
-
-	/*
-	 * Register the character device (atleast try)
-	 */
+	// Registering the character device dynamically allocating a major number
 	major_num = register_chrdev(0, DEVICE_NAME, &Fops);
 
-	/*
-	 * Negative values signify an error
-	 */
-	if (major_num < 0)
-	{
-		printk(KERN_ALERT "%s failed with \n", "Sorry, registering the character device ");
+	// Checking if an error has occurred
+	if (major_num < 0) {
+		
+		printk(KERN_ALERT "Sha1: Registering the character device failed\n");
+		return major_num;
 	}
 
+	// Getting virtual address that corresponds to the first memory (physical) address of the device (second argument is the size of the address space)
 	mmio = ioremap(SHA1_BASEADDR, 0x100);
 
-	printk("%s: Registers mapped to mmio = 0x%x  \n", __FUNCTION__, mmio);
+	#ifdef DEBUG
+		printk("Sha1: Registers mapped to %x\n", mmio);
+	#endif
 
-	printk(KERN_INFO "%s the major device number is %d.\n", "Registeration is a success", major_num);
-	printk(KERN_INFO "If you want to talk to the device driver,\n");
-	printk(KERN_INFO "create a device file by following command. \n \n");
-	printk(KERN_INFO "mknod %s c %d 0\n\n", DEVICE_NAME, major_num);
-	printk(KERN_INFO "The device file name is important, because\n");
-	printk(KERN_INFO "the ioctl program assumes that's the file you'll use\n");
-
-	rc = platform_driver_register(&blink_driver);
-
-	return rc;
+	printk(KERN_INFO "Sha1: Registeration is a success the major device number is %d.\n", major_num);
+	
+	return 0;
 }
 
-static void __exit blink_exit(void)
-{
+
+static void __exit sha1_exit(void) {
+
+	#ifdef DEBUG
+		printk(KERN_ALERT "Sha1: Executing EXIT\n");
+	#endif
+
+	// Unregistering the major number
 	unregister_chrdev(major_num, DEVICE_NAME);
-	platform_driver_unregister(&blink_driver);
-	printk(KERN_ALERT "Goodbye module world.\n");
 }
 
-module_init(blink_init);
-module_exit(blink_exit);
+
+module_init(sha1_init);
+module_exit(sha1_exit);
