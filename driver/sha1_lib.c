@@ -1,5 +1,20 @@
 #include "sha1_lib.h"
 
+errorHandler_t errorHandler;
+
+const int sha_1_open(){
+    	// const int device = open(DEVICE_FILE_NAME, O_RDWR | O_SYNC);
+        // if(device < 0){
+        //         //Error during opening
+        //         //close();
+
+        //         errorHandler.code = ERROR_SHA1;
+        //         sprintf(errorHandler.args, "Error in sha1_lib during open execution!\n");
+        //         }
+
+        // return device;
+}  
+
 static int send_to_device(const int device_addr, const uint32_t* block, uint32_t command) {
 	
 	uint8_t i;
@@ -10,14 +25,19 @@ static int send_to_device(const int device_addr, const uint32_t* block, uint32_t
 		inverted_block[i] =	block[(N_SLAVE_REGISTERS-1)-i];
 	}
 
+	// // Selecting the input command register
+	// if(ioctl(device_addr, DIN, NULL) < 0){
+	//  	errorHandler.code = ERROR_SHA1;
+    //  	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
+	// }
 
 	// // Writing the input data to the device
 	// write(device_addr, inverted_block, N_SLAVE_REGISTERS*sizeof(uint32_t));		   
 
 	// // Selecting the input command register
-	// if(sha1_ioctl(device_addr, START, NULL) < 0){
-	// 	errorHandler.code = ERROR_SHA1;
-	// 	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
+	// if(ioctl(device_addr, START, NULL) < 0){
+	//  	errorHandler.code = ERROR_SHA1;
+    //  	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
 	// }
 
 
@@ -25,28 +45,28 @@ static int send_to_device(const int device_addr, const uint32_t* block, uint32_t
 	// write(device_addr, &command, sizeof(uint32_t));				
 
 	// // Selecting the status register
-	// if(sha1_ioctl(device_addr, VALID, NULL) < 0){
-	// 	errorHandler.code = ERROR_SHA1;
-	// 	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
-	// }	
+	// if(ioctl(device_addr, VALID, NULL) < 0){
+	//  	errorHandler.code = ERROR_SHA1;
+	//  	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
+	//  }	
 
-	// // Reading status register
-	// read(device_addr, &status_register, sizeof(uint32_t));			
+    // // Reading status register
+    // read(device_addr, &status_register, sizeof(uint32_t));			
 
-	// // Checking if the device has finished
-	// while( (status_register & 0x1) == 0){			
-	// 	read(device_addr, &status_register, sizeof(uint32_t));
-	// 	usleep(SLEEP_TIME);
-	// }
+    // // Checking if the device has finished
+    // while( (status_register & 0x1) == 0){			
+    //     read(device_addr, &status_register, sizeof(uint32_t));
+    //     usleep(SLEEP_TIME);
+    //     }
 
-	// // Selecting the input command register
-	// if(sha1_ioctl(device_addr, START, NULL) < 0){
-	// 	errorHandler.code = ERROR_SHA1;
-	// 	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
-	// }
+    // // Selecting the input command register
+    // if(ioctl(device_addr, START, NULL) < 0){
+    // errorHandler.code = ERROR_SHA1;
+    // sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
+    // }
 
 	// command = 0;
-	// write (device_addr, &command, 4);
+	// write (device_addr, &command, sizeof(uint32_t));
 
 	return SUCCESS;
 }
@@ -155,10 +175,10 @@ void sha_1(const int device_addr, FILE* input_message, int* digested_message) {
 	}
 
 	// // Selecting the input command register
-	// if(sha1_ioctl(device_addr, DOUT, NULL) < 0){
-	// 	errorHandler.code = ERROR_SHA1;
-	// 	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
-	// }
+	// if(ioctl(device_addr, DOUT, NULL) < 0){
+	//  	errorHandler.code = ERROR_SHA1;
+	//  	sprintf(errorHandler.args, "Error in sha1_lib during ioctl execution! Not a valid address.\n");
+	//  }
 
 	// // Read the digested message
 	// read(device_addr, digested_message, DIGESTED_MESS_LENGTH);
