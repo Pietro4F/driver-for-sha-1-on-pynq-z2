@@ -1,35 +1,42 @@
-#include "driver.h"
+#include "sha1_driver.h"
 
 
 //Module information
-MODULE_LICENSE("CC-BY-NC-4.0");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("OS_2023_TEAM_4");
 MODULE_DESCRIPTION("SHA1 - driver to control sha1 hardware module");
+MODULE_VERSION("1.0");
 
 
-// Address of the first register of the device
-static unsigned long *mmio;
-
-// Address of the register selected using ioctl for read/write operations
-static unsigned long *selected_register;
-
-// Major number of the device
-static int major_num;
-
-// Flag to signal if device is already open. Used to prevent concurent access into the same device
-static int Device_Open = 0;
+static unsigned long *mmio;						// Address of the first register of the device
+static unsigned long *selected_register;		// Address of the register selected using ioctl for read/write operations
+static int Device_Open = 0;						// Flag to signal if device is already open. Used to prevent concurent access into the same device
 
 
-/** @brief This is called whenever a process attempts to open the device file. 
- *  The hardware is initialized
- *  @param inode A pointer to an inode object (defined in linux/fs.h)
- *  @param filep A pointer to a file object (defined in linux/fs.h)
+static int major_num;							// Major number of the device
+static struct class*  sha1_charClass  = NULL; 	// The device-driver class struct pointer
+static struct device* sha1_charDevice = NULL; 	// The device-driver device struct pointer
+
+
+/*
+ * Structure that holds the functions to be called
+ * when a process interacts with the device.
  */
+struct file_operations Fops = {
+	.owner = THIS_MODULE,
+	.open = sha1_open,
+	.read = sha1_read,
+	.write = sha1_write,
+	.unlocked_ioctl = sha1_ioctl,
+	.release = sha1_release
+};
+
+
 static int sha1_open(struct inode *inode, struct file *file) {
 	
-	#ifdef DEBUG
+	if(DEBUG == 1) {
 		printk(KERN_INFO "Sha1: Executing OPEN\n");
-	#endif
+	}
 
 	// Check if one other process is already accessing the device
 	if (Device_Open == 1) {
@@ -63,15 +70,6 @@ static int sha1_open(struct inode *inode, struct file *file) {
 }
 
 
-/** @brief This function is called whenever a process which has already opened the
- *  device file attempts to read from it.
- *  Starting from the address selected using the ioctl the device registers are readed for the length
- *  of the buffer specified as function argument.
- *  @param file A pointer to a file object (defined in linux/fs.h)
- *  @param buffer The pointer to the buffer to which this function writes the data
- *  @param length The length of the buffer
- *  @param offset The offset if required
- */
 static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, loff_t *offset) {
 	
 	// Bytes of data readed from the device
@@ -86,9 +84,9 @@ static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, 
 	// Reading until the input buffer is full
     while(length != 0) {
 		
-		#ifdef DEBUG
+		if(DEBUG == 1) {
 			printk(KERN_INFO "Sha1: Executing READ: selected register %lu, value %x\n", func_register, *func_register);
-		#endif
+		}
         
 		// Reading one word from the device
         if(copy_to_user(buffer, func_register, 4) == 0){
@@ -114,20 +112,11 @@ static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, 
         }
     }
 
-	// Returning the number of byter that have been correctly readed
+	// Returning the number of bytes that have been correctly readed
     return bytes_readed;
 }
 
 
-/** @brief This function is called when somebody tries to
- *  write into our device file.
- *  Starting from the address selected using the ioctl the device registers are writen for the length
- *  of the buffer specified as function argument.
- *  @param file A pointer to a file object
- *  @param buffer The buffer to that contains the string to write to the device
- *  @param length The length of the array of data that is being passed in the const char buffer
- *  @param offset The offset if required
- */
 static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset) {
 	
 	// Bytes of data written from the device
@@ -144,9 +133,9 @@ static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t l
 		// Writing one word to the device
         if(copy_from_user(func_register, buffer, 4) == 0){
 
-			#ifdef DEBUG
+			if(DEBUG == 1) {
 				printk(KERN_INFO "Sha1: Executing WRITE: selected register %lu, value %x\n", func_register, *func_register);
-        	#endif
+        	}
 
             // If successfully copied the word to the device
 
@@ -168,22 +157,16 @@ static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t l
         }
     }
 
-	// Returning the number of byter that have been correctly written
+	// Returning the number of bytes that have been correctly written
 	return bytes_written;
 }
 
 
-/** @brief Function to provide commands to the device 
- *  Using this function it is possible to select a register to target for the red/write operations
- *  @param file A pointer to a file object (defined in linux/fs.h)
- *  @param ioctl_num A command
- *  @param ioctl_param The arguments for the command 
- */
 long sha1_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_param) {
 
-	#ifdef DEBUG
+	if(DEBUG == 1) {
 		printk(KERN_INFO "Sha1: Executing IOCTL: command %x\n", ioctl_num);
-    #endif
+    }
 
 	// Switch according to the ioctl command
 	switch (ioctl_num) {
@@ -238,16 +221,11 @@ long sha1_ioctl(struct file *file, unsigned int ioctl_num, unsigned long ioctl_p
 }
 
 
-/** @brief This is called whenever a process attempts to close the device file.
- *  The hardware is resetted
- *  @param inode A pointer to an inode object (defined in linux/fs.h)
- *  @param filep A pointer to a file object (defined in linux/fs.h)
- */
 static int sha1_release(struct inode *inode, struct file *file) {
 
-	#ifdef DEBUG
+	if(DEBUG == 1) {
 		printk(KERN_INFO "Sha1: Executing RELEASE\n");
-	#endif
+	}
 
 	// Resetting the flag
 	Device_Open = 0;
@@ -261,25 +239,11 @@ static int sha1_release(struct inode *inode, struct file *file) {
 }
 
 
-/*
- * Structure that holds the functions to be called
- * when a process interacts with the device.
- */
-struct file_operations Fops = {
-	.owner = THIS_MODULE,
-	.open = sha1_open,
-	.read = sha1_read,
-	.write = sha1_write,
-	.unlocked_ioctl = sha1_ioctl,
-	.release = sha1_release
-};
-
-
 static int __init sha1_init(void) {
 
-	#ifdef DEBUG
+	if(DEBUG == 1) {
 		printk(KERN_INFO "Sha1: Executing INIT\n");
-	#endif
+	}
 
 	// Registering the character device dynamically allocating a major number
 	major_num = register_chrdev(0, DEVICE_NAME, &Fops);
@@ -287,16 +251,39 @@ static int __init sha1_init(void) {
 	// Checking if an error has occurred
 	if (major_num < 0) {
 		
-		printk(KERN_ALERT "Sha1: Registering the character device failed\n");
+		printk(KERN_ALERT "Sha1: Failed to register a major number\n");
 		return major_num;
+	}
+
+	// Registering the device class
+	sha1_charClass = class_create(THIS_MODULE, CLASS_NAME);
+
+	// Checking if an error has occurred
+	if (IS_ERR(sha1_charClass)) {
+
+		unregister_chrdev(major_num, DEVICE_NAME);
+		printk(KERN_ALERT "Sha1: Failed to register device class\n");
+		return PTR_ERR(sha1_charClass);
+	}
+
+	// Register the device driver
+	sha1_charDevice = device_create(sha1_charClass, NULL, MKDEV(major_num, 0), NULL, DEVICE_NAME);
+
+	// Checking if an error has occurred
+	if (IS_ERR(sha1_charDevice)) {
+		
+		class_destroy(sha1_charClass);
+		unregister_chrdev(major_num, DEVICE_NAME);
+		printk(KERN_ALERT "Sha1: Failed to create the device\n");
+		return PTR_ERR(sha1_charDevice);
 	}
 
 	// Getting virtual address that corresponds to the first memory (physical) address of the device (second argument is the size of the address space)
 	mmio = ioremap(SHA1_BASEADDR, 0x100);
 
-	#ifdef DEBUG
+	if(DEBUG == 1) {
 		printk("Sha1: Registers mapped to %x\n", mmio);
-	#endif
+	}
 
 	printk(KERN_INFO "Sha1: Registeration is a success the major device number is %d.\n", major_num);
 	
@@ -306,12 +293,23 @@ static int __init sha1_init(void) {
 
 static void __exit sha1_exit(void) {
 
-	#ifdef DEBUG
+	if(DEBUG == 1) {
 		printk(KERN_ALERT "Sha1: Executing EXIT\n");
-	#endif
+	}
+
+	// Removing the device
+	device_destroy(sha1_charClass, MKDEV(major_num, 0));
+
+	// Unregistering the device class
+	class_unregister(sha1_charClass);
+
+	// Removing the device class
+	class_destroy(sha1_charClass);
 
 	// Unregistering the major number
 	unregister_chrdev(major_num, DEVICE_NAME);
+
+	printk(KERN_INFO "Sha1: Successfully removed device\n");
 }
 
 
