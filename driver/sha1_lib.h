@@ -16,7 +16,7 @@
 #include <string.h>
 
 // Macro definition
-#define DEVICE_FILE_NAME "/dev/Sha1_module"
+#define DEVICE_FILE_NAME "/dev/sha1_module"
 
 // Defining magic number to generate ioctl identifiers
 #define MAGIC_NUM 100

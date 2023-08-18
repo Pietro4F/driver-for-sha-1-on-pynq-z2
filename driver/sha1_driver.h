@@ -30,7 +30,7 @@
 #define IOCTL_FAIL 2
 
 // Defining name of the module and class name
-#define DEVICE_NAME "/dev/Sha1_module"
+#define DEVICE_NAME "sha1_module"
 #define CLASS_NAME  "sha1"
 
 // Defining base address for the registers of the device
