@@ -4,16 +4,18 @@
 
 #include "sha1_lib.h"
 
+void print_result(int *digested_message);
+
 int main() {
 
 	int fd;
-    int* digested_message;
+    int digested_message[5];
     char command;
     char file_name[100], str_to_enc[100];
 
     
     // Open the sha1 driver
-    // const int device = sha_1_open();
+    const int device = sha_1_open();
 
     //Print wellcome message
     printf("Enter s/S to execute the SHA1 algorithm on a string, enter f/F to perform the SHA1 algorithm on an file\n");
@@ -35,10 +37,12 @@ int main() {
         if(errorHandler.code >= 0){
 
             // Perform the encryption
-            sha_1_s(0, str_to_enc, digested_message);
+            sha_1_s(device, str_to_enc, digested_message);
+
+            print_result(digested_message);
 
             // Close the device file
-            //close(device);
+            close(device);
 
         }
 
@@ -64,11 +68,16 @@ int main() {
         {
             if(errorHandler.code >= 0){
 
+                printf("File correctly opened\n");
+
+                printf("Start SHA1\n");
                 // Perform the encryption
-                sha_1(0, fd, digested_message);
+                sha_1(device, fd, digested_message);
+
+                print_result(digested_message);
 
                 // Close the device file
-                //close(device);
+                close(device);
 
             }
 
@@ -88,3 +97,11 @@ int main() {
 	return 0;
 }
 
+void print_result(int *digested_message){
+
+    printf("Result:");
+    for(int i = 4; i >= 0; i--){
+        printf("%08x ", digested_message[i]);
+    }
+    printf("\n");
+}
