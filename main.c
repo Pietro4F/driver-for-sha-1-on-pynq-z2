@@ -1,16 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "./sha1_lib_v1.h"
+#include "sha1_lib.h"
 
 int main() {
 
-	FILE* fd;
+	int fd;
 
-	// Open file 
-	fd = fopen("test.txt", "r");
+	// Open file to encrypt
+	fd = open(DEVICE_FILE_NAME, O_RDONLY);
 
-	//const int device = open(DEVICE_FILE_NAME, O_RDWR | O_SYNC);
+    // // Open the sha1 driver
+	// const int device = sha_1_open();
+
+    // Perform the encryption
 	sha_1(0, fd, NULL);
+
+    // Execute error function
+    error();
 
 	return 0;
 }
