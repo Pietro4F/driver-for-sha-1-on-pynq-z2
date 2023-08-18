@@ -58,12 +58,19 @@ typedef struct {
  */
 const int sha_1_open();  
 
-/** @brief 
+/** @brief Perform the SHA1 algorithm on a file
  *  @param  device_addr A pointer to a device file object
  *  @param  input_message A pointer to a file handler that contains the message to encrypt 
  *  @param  digested_message A pointer to the digested message
  */
-void sha_1(const int device_addr, FILE* input_message, int* digested_message);  
+void sha_1(const int device_addr, int input_message, int* digested_message);  
+
+/** @brief Perform the SHA1 algorithm on a string
+ *  @param  device_addr A pointer to a device file object
+ *  @param  str_to_enc A pointer to a string that contains the message to encrypt 
+ *  @param  digested_message A pointer to the digested message
+ */
+void sha_1_s(const int device_addr, char * str_to_enc, int* digested_message);  
 
 /** @brief Function to provide commands to the device 
  *  @param  A pointer to a file object (defined in linux/fs.h)
@@ -71,6 +78,8 @@ void sha_1(const int device_addr, FILE* input_message, int* digested_message);
  *  @param  The arguments for the command 
  */
 static int send_to_device(const int device_addr, const uint32_t* block, uint32_t command);
+
+static int read_block(const char* str, uint64_t pos, uint8_t* block);
 
 /** @brief Function to handle the possible errors
  */
