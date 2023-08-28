@@ -147,7 +147,7 @@ void sha_1(const int device_addr, int input_message, int* digested_message) {
 			*((uint8_t*)(block)+i) = 0x00;
 		}
 
-		// Endianess correction (VERIFICARE PERCHE C'ERA 14 ORA E' 15)
+		// Endianess correction
 		for (i=0; i<(N_BLOCK - 1); i++) {
 			block[i] = __builtin_bswap32(block[i]);
 		}
@@ -252,7 +252,7 @@ void sha_1_s(const int device_addr, char * str_to_enc, int* digested_message){
 	 		*((uint8_t*)(block)+i) = 0x00;
 	 	}
 
-	 	// Endianess correction (VERIFICARE PERCHE C'ERA 14 ORA E' 15)
+	 	// Endianess correction
 	 	for (i=0; i<(N_BLOCK - 1); i++) {
 	 		block[i] = __builtin_bswap32(block[i]);
 	 	}
