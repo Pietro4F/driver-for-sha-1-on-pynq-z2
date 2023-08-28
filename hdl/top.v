@@ -1,3 +1,20 @@
+/*
+
+This code is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.
+https://creativecommons.org/licenses/by-nc/4.0/
+
+Developed by:
+- Pietro Fagnani	Politecnico di Torino, Italy - pietro.fagnani@studenti.polito.it
+- Luca D'Elia		Politecnico di Torino, Italy - luca.delia@studenti.polito.it
+- Marco Massetti	Politecnico di Torino, Italy - marco.massetti@studenti.polito.it
+- Jacopo Serra		Politecnico di Torino, Italy - serra.jacopo@studenti.polito.it
+- Massimo Emiliano	Politecnico di Torino, Italy - massimo.emiliano@studenti.polito.it
+- Gioele Sineo		Politecnico di Torino, Italy - gioele.sineo@studenti.polito.it
+
+There is no warranty
+
+*/
+
 module top (
 	input clk, 
 	input rstn,
