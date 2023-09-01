@@ -5,12 +5,12 @@ A Linux device driver for a crypto core in a PYNQ-Xilinx Board
 <br>
 <pre>
 Developed by:<br>
-- Pietro Fagnani    Politecnico di Torino, Italy - pietro.fagnani@studenti.polito.it  <br>
-- Luca D'Elia       Politecnico di Torino, Italy - luca.delia@studenti.polito.it  <br>
-- Marco Massetti    Politecnico di Torino, Italy - marco.massetti@studenti.polito.it  <br>
-- Jacopo Serra	    Politecnico di Torino, Italy - serra.jacopo@studenti.polito.it  <br>
-- Massimo Emiliano  Politecnico di Torino, Italy - massimo.emiliano@studenti.polito.it  <br>
-- Gioele Sineo      Politecnico di Torino, Italy - gioele.sineo@studenti.polito.it  <br>
+- Pietro Fagnani    Politecnico di Torino, Italy <br>
+- Luca D'Elia       Politecnico di Torino, Italy <br>
+- Marco Massetti    Politecnico di Torino, Italy <br>
+- Jacopo Serra	    Politecnico di Torino, Italy <br>
+- Massimo Emiliano  Politecnico di Torino, Italy <br>
+- Gioele Sineo      Politecnico di Torino, Italy <br>
 </pre>
 
 <br>
