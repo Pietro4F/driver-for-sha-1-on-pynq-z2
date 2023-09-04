@@ -89,10 +89,10 @@ static int sha1_open(struct inode *inode, struct file *file) {
 
 static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, loff_t *offset) {
 	
-	// Bytes of data readed from the device
-	ssize_t bytes_readed = 0;
+	// Bytes of data read from the device
+	ssize_t bytes_read = 0;
 
-	// Address from where data will be readed
+	// Address from where data will be read
 	static unsigned long *func_register;
 	
 	// Setting initial address to the value selected by ioctl 
@@ -116,11 +116,11 @@ static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, 
 			// Updating the word of memory to read next
 			func_register = func_register + 1;
 
-			// Updating the number of byter that have to be readed
+			// Updating the number of byter that have to be read
             length = length - 4;
 
-			// Updating the number of bytes that have been correctly readed
-            bytes_readed = bytes_readed + 4;
+			// Updating the number of bytes that have been correctly read
+            bytes_read = bytes_read + 4;
 
         } else{
 
@@ -129,17 +129,17 @@ static ssize_t sha1_read(struct file *file, char __user *buffer, size_t length, 
         }
     }
 
-	// Returning the number of bytes that have been correctly readed
-    return bytes_readed;
+	// Returning the number of bytes that have been correctly read
+    return bytes_read;
 }
 
 
 static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset) {
 	
-	// Bytes of data written from the device
+	// Bytes of data written to the device
 	ssize_t bytes_written = 0;
 
-	// Address from where data will be readed
+	// Address to where data will be written
 	static unsigned long *func_register;
 	
 	// Setting initial address to the value selected by ioctl 
@@ -162,7 +162,7 @@ static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t l
 			// Updating the word of memory to write next
 			func_register = func_register + 1;
 
-			// Updating the number of byter that have to be writed
+			// Updating the number of byter that have to be written
             length = length - 4;
 
 			// Updating the number of bytes that have been correctly written
