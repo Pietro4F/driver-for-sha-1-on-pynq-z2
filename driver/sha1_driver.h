@@ -123,7 +123,7 @@ static ssize_t sha1_write(struct file *file, const char __user *buffer, size_t l
 
 
 /** @brief Function to provide commands to the device 
- *  Using this function it is possible to select a register to target for the red/write operations
+ *  Using this function it is possible to select a register to target for the read/write operations
  *  @param file A pointer to a file object (defined in linux/fs.h)
  *  @param ioctl_num A command
  *  @param ioctl_param The arguments for the command 
